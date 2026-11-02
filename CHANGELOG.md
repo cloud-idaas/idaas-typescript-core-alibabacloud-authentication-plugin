@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.1.0-beta.1 (Unreleased)
+## 0.1.0-beta.2 (Unreleased)
+
+- Publish a maintenance prerelease with no API changes.
+
+## 0.1.0-beta.1
 
 - Support IDaaS authentication using an authorized Alibaba Cloud identity.
 - Retain compatibility with existing plugin names and honor HTTP configuration.
