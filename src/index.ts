@@ -2,8 +2,10 @@ import Credential from '@alicloud/credentials';
 import Client, { GenerateOauthTokenRequest } from '@alicloud/eiam20211201';
 import { $OpenApiUtil } from '@alicloud/openapi-core';
 import { RetryOptions, RuntimeOptions } from '@darabonba/typescript';
+import { SDK_VERSION } from './sdk-version';
 import {
   ClientException,
+  buildConfiguredUserAgent,
   buildUserAgent,
   CredentialException,
   type IDaaSClientConfig,
@@ -17,6 +19,16 @@ import {
   record,
   validateConfig,
 } from '@cloud-idaas/core-sdk';
+
+/** Returns this plugin's installed build version, including prerelease labels. */
+export function getSDKVersion(): string {
+  return SDK_VERSION;
+}
+
+/** Custom transports must send this value as their User-Agent, preserving their transport SDK marker if any. */
+export interface TokenOperationContext {
+  userAgent: string;
+}
 
 /** Official GenerateOauthToken input for one audience, without long-lived access keys. */
 export interface GenerateTokenInput {
@@ -37,7 +49,11 @@ export interface AlibabaAuthenticationPluginOptions {
    * Replaces the official OpenAPI call and returns the official body.tokenResponse structure.
    * Custom implementations own their timeout, TLS, and retry policies; errors become sanitized SDK exceptions.
    */
-  tokenOperation?: (request: GenerateTokenInput, endpoint: string) => Promise<unknown>;
+  tokenOperation?: (
+    request: GenerateTokenInput,
+    endpoint: string,
+    context: TokenOperationContext,
+  ) => Promise<unknown>;
 }
 
 /** Not registered automatically; callers explicitly register the instance with the Core factory. */
@@ -83,16 +99,23 @@ export class AlibabaOpenApiCredentialProvider implements PluginCredentialProvide
       scopeValues: [...new Set(parts.map((value) => value[1]!))],
     };
     const endpoint = endpointUrl(config.openApiEndpoint!);
+    const http = config.httpConfiguration;
+    let userAgent = buildConfiguredUserAgent(http, {
+      includeRuntime: Boolean(this.options.tokenOperation),
+      additionalComponents: [
+        `idaas-typescript-core-alibabacloud-authentication-plugin/${getSDKVersion()}`,
+      ],
+    });
+    if (http?.userAgent === undefined) {
+      const legacyUserAgent = process.env.ALIBABA_CLOUD_USER_AGENT;
+      if (legacyUserAgent) userAgent += ` ${buildUserAgent(legacyUserAgent)}`;
+    }
     const started = Date.now();
     try {
       let response: unknown;
       if (this.options.tokenOperation)
-        response = await this.options.tokenOperation(request, endpoint.href);
+        response = await this.options.tokenOperation(request, endpoint.href, { userAgent });
       else {
-        const http = config.httpConfiguration;
-        const sdkUserAgent = buildUserAgent(http?.userAgent);
-        const legacyUserAgent =
-          http?.userAgent === undefined ? process.env.ALIBABA_CLOUD_USER_AGENT : undefined;
         // The current official transport reads Config.retryOptions; also explicitly disable legacy runtime retries.
         const retryOptions = new RetryOptions({ retryable: false });
         const client = new Client(
@@ -103,9 +126,7 @@ export class AlibabaOpenApiCredentialProvider implements PluginCredentialProvide
             connectTimeout: http?.connectTimeout ?? 5000,
             readTimeout: http?.readTimeout ?? 10000,
             retryOptions,
-            userAgent: legacyUserAgent
-              ? `${sdkUserAgent} ${buildUserAgent(legacyUserAgent)}`
-              : sdkUserAgent,
+            userAgent,
           }),
         );
         response = await client.generateOauthTokenWithOptions(

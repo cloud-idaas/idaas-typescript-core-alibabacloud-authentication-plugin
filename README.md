@@ -37,6 +37,12 @@ Register `AlibabaOpenApiCredentialProvider` before initializing Core. Set `authn
 
 A request scope must identify one audience. Existing configurations using the supported plugin alias remain compatible. `httpConfiguration.userAgent` customizes the SDK identifier appended to the official client's User-Agent. Injected credential sources and request implementations remain caller-owned.
 
+The default User-Agent uses the official Alibaba Cloud SDK runtime and platform base, then adds the Core and `idaas-typescript-core-alibabacloud-authentication-plugin/<version>` identifiers. Public `getSDKVersion()` returns this plugin's build version, including prerelease labels, or `unknown` for an unversioned source build. Core's `httpConfiguration` supplies the diagnostic labels. The hostname is collected locally by default when available. Set `userAgentHostname` for an alias or `userAgentHostnameEnabled: false` to omit it.
+
+An explicit `httpConfiguration.userAgent` keeps the previous full-replacement behavior for the Core/plugin suffix and ignores metadata; the official SDK prefix remains. The legacy `ALIBABA_CLOUD_USER_AGENT` extension is retained only without that explicit override. Labels are diagnostic only and must not contain credentials.
+
+Custom `tokenOperation(request, endpoint, context)` implementations receive `context.userAgent` and must forward it as their User-Agent, retaining their transport SDK identifier if applicable. Existing two-argument callbacks remain compatible. Use the Core SDK version declared in this plugin's dependencies.
+
 ## Examples and support
 
 See [examples](examples) for CommonJS, ESM, and TypeScript samples. Report issues through [GitHub Issues](https://github.com/cloud-idaas/idaas-typescript-core-alibabacloud-authentication-plugin/issues). Development instructions are in the repository's [contribution guide](https://github.com/cloud-idaas/idaas-typescript-core-alibabacloud-authentication-plugin/blob/master/CONTRIBUTING.md).
