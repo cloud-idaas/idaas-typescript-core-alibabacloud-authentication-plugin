@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.1.0-beta.2 (Unreleased)
+## 0.1.0-beta.3
+
+- Use the plugin repository name and build version in User-Agent extensions while retaining the official Alibaba Cloud base.
+- Expose the plugin build version and propagate Core User-Agent diagnostics through SDK and custom authentication requests. Official requests include a single runtime identifier.
+- Use Core SDK 0.1.0-beta.3 for the User-Agent metadata contract.
+
+## 0.1.0-beta.2
 
 - Publish a maintenance prerelease with no API changes.
 
